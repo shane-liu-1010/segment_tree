@@ -1,94 +1,93 @@
 #include<iostream>
+#include<sstream>
 #include<vector>
-#include<algorithm>
-#include<queue>
-#include<cmath>
-#include<functional>
 using namespace std;
 
-#define endl '\n'
-#define IO_optimization cin.tie(0),ios_base::sync_with_stdio(false)
+#define int long long
 
+vector<int>st;
+vector<int>lazy;
+vector<int>a;
 
-auto func=[](auto a,auto b){
-    return (a>b)?a:b;
-};
-
-template<class T>class SegmentTree{
-private:
-    int l_segment;
-    int r_segment;
-    T data;
-    SegmentTree *l_son;
-    SegmentTree *r_son;
-    void build(int l,int r,vector<T>&v){
-        l_segment=l,r_segment=r;
-        if(l==r-1)data=v[l];
-        else{
-            l_son=new SegmentTree();
-            r_son=new SegmentTree();
-            l_son->build(l,(l+r)/2,v);
-            r_son->build((l+r)/2,r,v);
-            data=func(l_son->data,r_son->data);
-        }
+void build(int l,int r,int v){
+    if(l==r-1){
+        st[v]=a[l];
+        return;
     }
-public:
-    SegmentTree(){l_son=r_son=nullptr;}
-    SegmentTree(vector<T>&v){build(0,v.size(),v);}
-    T query(int l,int r){
-        if(l_segment==l && r_segment==r)return data;
-        else{
-            int mid=(l_segment+r_segment)/2;
-            if(r<=mid)return l_son->query(l,r);
-            else if(l>=mid)return r_son->query(l,r);
-            else return func(l_son->query(l,mid),r_son->query(mid,r));
-        }
+    int m = (l+r)/2;
+    build(l,m,v<<1);
+    build(m,r,v<<1|1);
+    st[v] = st[v<<1] + st[v<<1|1];
+}
+
+void pushDown(int v,int l,int r){
+    if(lazy[v]){
+        int m = (l+r)>>1;
+        st[v<<1]+=lazy[v]*(m-l);
+        lazy[v<<1]+=lazy[v];
+        st[v<<1|1]+=lazy[v]*(r-m);
+        lazy[v<<1|1]+=lazy[v];
+        lazy[v]=0;
     }
-    void modify(int x,T value){
-        if(l_segment==r_segment-1)data=value;
-        else{
-            int mid=(l_segment+r_segment)/2;
-            if(x<mid)l_son->modify(x,value);
-            else r_son->modify(x,value);
-            data=func(l_son->data,r_son->data);
-        }
+}
+
+void modify(int l,int r,int n_l,int n_r,int v,int k){
+    if(l==r)return;
+    if(l==n_l && r==n_r){
+        st[v] += k*(r-l);
+        lazy[v] += k;
+        return;
     }
-};
+    pushDown(v,n_l,n_r);
+    int m = (n_r+n_l)>>1;
+    if(r<=m){
+        modify(l,r,n_l,m,v<<1,k);
+    }
+    else if(l>m){
+        modify(l,r,m,n_r,v<<1|1,k);
+    }
+    else{
+        modify(l,m,n_l,m,v<<1,k);
+        modify(m,r,m,n_r,v<<1|1,k);
+    }
+    st[v] = st[v<<1]+st[v<<1|1];
+}
 
-int main(){
-    IO_optimization;
+int query(int l,int r,int n_l,int n_r,int v){
+    if(l==r)return 0;
+    if(l==n_l && r==n_r)return st[v];
+    int m = (n_l+n_r)>>1;
+    pushDown(v,n_l,n_r);
+    if(r<=m){
+        return query(l,r,n_l,m,v<<1);
+    }
+    else if(l>m){
+        return query(l,r,m,n_r,v<<1|1);
+    }
+    else{
+        return query(l,m,n_l,m,v<<1)+query(m,r,m,n_r,v<<1|1);
+    }
+}
 
-    vector<int>v;
-    int n;
-    cin>>n;
-    v.resize(n);
-
-    for(int i=0;i<n;i++)cin>>v[i];
-    SegmentTree<int>st(v);
-
-    int q;
-    cin>>q;
-    int l,r;
-    for(int i=0;i<q;i++){
-        cin>>l>>r;
-        if(l>r){
-            int temp=l;l=r;r=temp;
+int32_t main(){
+    int n,m;
+    cin>>n>>m;
+    st.resize(4*n);
+    lazy.resize(4*n);
+    a.resize(n);
+    for(int &i:a)cin>>i;
+    build(0,n,1);
+    int x,y,k,c;
+    for(int i=0;i<m;i++){
+        cin>>c;
+        if(c==1){
+            cin>>x>>y>>k;
+            modify(x-1,y,0,n,1,k);
         }
-        cout<<(st.query(l-1,r))<<endl;
+        else{
+            cin>>x>>y;
+            cout<<query(x-1,y,0,n,1)<<endl;
+        }
     }
     return 0;
 }
-/*
-
-10
-3 2 4 5 6 8 1 2 9 7
-7
-1 5
-3 5
-1 10
-5 8
-6 6
-2 4
-2 9
-
-*/
